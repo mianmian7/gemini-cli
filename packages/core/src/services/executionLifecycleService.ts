@@ -6,7 +6,6 @@
 
 import type { InjectionService } from '../config/injectionService.js';
 import type { AnsiOutput } from '../utils/terminalSerializer.js';
-import type { InjectionService } from '../config/injectionService.js';
 
 export type ExecutionMethod =
   | 'lydell-node-pty'
@@ -181,15 +180,6 @@ export class ExecutionLifecycleService {
   >();
   private static backgroundCompletionListeners =
     new Set<BackgroundCompletionListener>();
-  private static injectionService: InjectionService | null = null;
-
-  /**
-   * Wires a singleton InjectionService so that backgrounded executions
-   * can inject their output directly without routing through the UI layer.
-   */
-  static setInjectionService(service: InjectionService): void {
-    this.injectionService = service;
-  }
 
   private static backgroundStartListeners = new Set<BackgroundStartListener>();
 
@@ -281,7 +271,6 @@ export class ExecutionLifecycleService {
     this.backgroundCompletionListeners.clear();
     this.injectionService = null;
     this.backgroundStartListeners.clear();
-    this.injectionService = null;
     this.nextExecutionId = NON_PROCESS_EXECUTION_ID_START;
   }
 
@@ -416,15 +405,6 @@ export class ExecutionLifecycleService {
         injectionText,
         completionBehavior: behavior,
       };
-
-      // Inject directly into the model conversation if injection text is
-      // available and the injection service has been wired up.
-      if (injectionText && this.injectionService) {
-        this.injectionService.addInjection(
-          injectionText,
-          'background_completion',
-        );
-      }
 
       for (const listener of this.backgroundCompletionListeners) {
         listener(info);
