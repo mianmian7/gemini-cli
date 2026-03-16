@@ -1923,6 +1923,16 @@ const SETTINGS_SCHEMA = {
         description: 'Enable task tracker tools.',
         showInDialog: false,
       },
+      akl: {
+        type: 'boolean',
+        label: 'Agent Knowledge Layer',
+        category: 'Experimental',
+        requiresRestart: true,
+        default: false,
+        description:
+          'Enable the Agent Knowledge Layer (AKL) for situational awareness across agent loops.',
+        showInDialog: true,
+      },
       modelSteering: {
         type: 'boolean',
         label: 'Model Steering',
