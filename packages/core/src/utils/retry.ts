@@ -15,8 +15,6 @@ import { delay, createAbortError } from './delay.js';
 import { debugLogger } from './debugLogger.js';
 import { getErrorStatus, ModelNotFoundError } from './httpErrors.js';
 import type { RetryAvailabilityContext } from '../availability/modelPolicy.js';
-import { classifyFailureKind } from '../availability/errorClassification.js';
-import { applyAvailabilityTransition } from '../availability/policyHelpers.js';
 
 export type { RetryAvailabilityContext };
 export const DEFAULT_MAX_ATTEMPTS = 10;
@@ -283,9 +281,6 @@ export async function retryWithBackoff<T>(
         classifiedError instanceof TerminalQuotaError ||
         classifiedError instanceof ModelNotFoundError
       ) {
-        const failureKind = classifyFailureKind(classifiedError);
-        applyAvailabilityTransition(getAvailabilityContext, failureKind);
-
         if (onPersistent429) {
           try {
             const fallbackModel = await onPersistent429(
@@ -301,6 +296,7 @@ export async function retryWithBackoff<T>(
             debugLogger.warn('Fallback to Flash model failed:', fallbackError);
           }
         }
+        // Terminal/not_found already recorded; nothing else to mark here.
         throw classifiedError; // Throw if no fallback or fallback failed.
       }
 
@@ -334,9 +330,6 @@ export async function retryWithBackoff<T>(
           debugLogger.warn(
             `Attempt ${attempt} failed${errorMessage ? `: ${errorMessage}` : ''}. Max attempts reached`,
           );
-
-          const failureKind = classifyFailureKind(classifiedError);
-          applyAvailabilityTransition(getAvailabilityContext, failureKind);
 
           if (onPersistent429) {
             try {
@@ -403,8 +396,6 @@ export async function retryWithBackoff<T>(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         !shouldRetryOnError(error as Error, retryFetchErrors)
       ) {
-        const failureKind = classifyFailureKind(classifiedError);
-        applyAvailabilityTransition(getAvailabilityContext, failureKind);
         throw error;
       }
 
