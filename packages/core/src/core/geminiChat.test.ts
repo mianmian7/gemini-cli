@@ -17,6 +17,7 @@ import {
   InvalidStreamError,
   StreamEventType,
   SYNTHETIC_THOUGHT_SIGNATURE,
+  sanitizeContentsForApi,
   type StreamEvent,
 } from './geminiChat.js';
 import type { Config } from '../config/config.js';
@@ -2568,5 +2569,102 @@ describe('GeminiChat', () => {
         value: response,
       });
     });
+  });
+});
+
+describe('sanitizeContentsForApi', () => {
+  it('should strip id from functionResponse parts', () => {
+    const contents: Content[] = [
+      {
+        role: 'user',
+        parts: [
+          {
+            functionResponse: {
+              id: 'call-123',
+              name: 'testTool',
+              response: { success: true },
+            },
+          },
+        ],
+      },
+    ];
+
+    const result = sanitizeContentsForApi(contents);
+
+    expect(result[0].parts?.[0].functionResponse).toEqual({
+      name: 'testTool',
+      response: { success: true },
+    });
+  });
+
+  it('should not modify parts without functionResponse', () => {
+    const contents: Content[] = [{ role: 'user', parts: [{ text: 'hello' }] }];
+
+    const result = sanitizeContentsForApi(contents);
+
+    expect(result).toEqual(contents);
+    expect(result[0]).toBe(contents[0]);
+  });
+
+  it('should not modify functionResponse without id', () => {
+    const contents: Content[] = [
+      {
+        role: 'user',
+        parts: [
+          {
+            functionResponse: {
+              name: 'testTool',
+              response: { success: true },
+            },
+          },
+        ],
+      },
+    ];
+
+    const result = sanitizeContentsForApi(contents);
+
+    expect(result).toEqual(contents);
+    expect(result[0]).toBe(contents[0]);
+  });
+
+  it('should handle multiple functionResponse parts in one content', () => {
+    const contents: Content[] = [
+      {
+        role: 'user',
+        parts: [
+          {
+            functionResponse: {
+              id: 'call-1',
+              name: 'tool1',
+              response: { a: 1 },
+            },
+          },
+          { text: 'middle text' },
+          {
+            functionResponse: {
+              id: 'call-2',
+              name: 'tool2',
+              response: { b: 2 },
+            },
+          },
+        ],
+      },
+    ];
+
+    const result = sanitizeContentsForApi(contents);
+
+    expect(result[0].parts?.[0].functionResponse).toEqual({
+      name: 'tool1',
+      response: { a: 1 },
+    });
+    expect(result[0].parts?.[1]).toEqual({ text: 'middle text' });
+    expect(result[0].parts?.[2].functionResponse).toEqual({
+      name: 'tool2',
+      response: { b: 2 },
+    });
+  });
+
+  it('should handle empty contents array', () => {
+    expect(sanitizeContentsForApi([])).toEqual([]);
   });
 });
